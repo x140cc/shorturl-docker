@@ -85,7 +85,7 @@ func Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	shortUrl := "http://"+ *d +"/" + newCode
+	shortUrl := newCode
 	resp := &Response{Status: http.StatusOK, Msg: "Short URL created successfully", Url: shortUrl}
 	respJson, _ := json.Marshal(resp)
 	fmt.Fprint(w, string(respJson))
