@@ -11,9 +11,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
-)
+	"flag"
 
-var baseUrl = "http://localhost:8080/" // Replace this url with your server goShort server url
+)
+var d = flag.String("d", "bad.name", "domain to use")
+//var baseUrl = "http://localhost/" // Replace this url with your server goShort server url
 var boltDBPath = "shortURL.db"
 var shortUrlBkt = []byte("shortUrlBkt")
 var seedChars = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
@@ -28,6 +30,7 @@ type Response struct {
 }
 
 func main() {
+	flag.Parse()
 	var err error
 	dbConn, err = bolt.Open(boltDBPath, 0644, nil)
 	if err != nil {
@@ -82,7 +85,7 @@ func Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	shortUrl := baseUrl + newCode
+	shortUrl := "http://"+ *d +"/" + newCode
 	resp := &Response{Status: http.StatusOK, Msg: "Short URL created successfully", Url: shortUrl}
 	respJson, _ := json.Marshal(resp)
 	fmt.Fprint(w, string(respJson))
