@@ -16,7 +16,7 @@ import (
 )
 var d = flag.String("d", "bad.name", "domain to use")
 //var baseUrl = "http://localhost/" // Replace this url with your server goShort server url
-var boltDBPath = "shortURL.db"
+var boltDBPath = "/db/url.db"
 var shortUrlBkt = []byte("shortUrlBkt")
 var seedChars = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 var seedCharsLen = len(seedChars)
