@@ -1,26 +1,22 @@
 package main
 
 import (
-	"bytes"
+
 	"encoding/json"
-	"errors"
 	"fmt"
 	valid "github.com/asaskevich/govalidator"
 	"github.com/boltdb/bolt"
+	"github.com/bradialabs/shortid"
 	"github.com/julienschmidt/httprouter"
 	"log"
 	"net/http"
 	"strings"
-	"flag"
+
 
 )
-var d = flag.String("d", "bad.name", "domain to use")
-//var baseUrl = "http://localhost/" // Replace this url with your server goShort server url
+
 var boltDBPath = "/db/url.db"
 var shortUrlBkt = []byte("shortUrlBkt")
-var seedChars = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-var seedCharsLen = len(seedChars)
-var aChar byte = 97
 var dbConn *bolt.DB
 
 type Response struct {
@@ -30,7 +26,6 @@ type Response struct {
 }
 
 func main() {
-	flag.Parse()
 	var err error
 	dbConn, err = bolt.Open(boltDBPath, 0644, nil)
 	if err != nil {
@@ -55,15 +50,9 @@ func Create(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		return
 	}
 
-	newCode, err := GetNextCode()
-	if err != nil {
-		resp := Response{Status: http.StatusInternalServerError, Msg: "Some error occured while creating short URL", Url: ""}
-		respJson, _ := json.Marshal(resp)
-		fmt.Fprint(w, string(respJson))
-	}
-
+	newCode := GetNextCode()
 	byteKey, byteUrl := []byte(newCode), []byte(urlStr)
-	err = dbConn.Update(func(tx *bolt.Tx) error {
+	err := dbConn.Update(func(tx *bolt.Tx) error {
 		//@todo : move this code to main function
 		bucket, err := tx.CreateBucketIfNotExists(shortUrlBkt)
 		if err != nil {
@@ -150,67 +139,8 @@ func getCodeURL(code string) (string, error) {
 	return originalUrl, nil
 }
 
-func GetNextCode() (string, error) {
-	var newCode string
-	err := dbConn.Update(func(tx *bolt.Tx) error {
-		// by using locking on db file BoldDB makes sure it will be thread safe operation
-		// and no two goroutines can can get same a short code at a time
-		bucket, err := tx.CreateBucketIfNotExists(shortUrlBkt)
-		if err != nil {
-			return err
-		}
-
-		existingCodeByteKey := []byte("existingCodeKey")
-		existingCode := bucket.Get(existingCodeByteKey)
-		newCode, err = GenerateNextCode(string(existingCode))
-		if err != nil {
-			return err
-		}
-
-		err = bucket.Put(existingCodeByteKey, []byte(newCode))
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
-		return "", err
-	}
-	return newCode, nil
+func GetNextCode() string {
+	s := shortid.New()
+	return s.Generate()
 }
 
-/*
-	Following method is used to generate alphanumeric incremental code, which will be helpful
-	for generating short urls
-	this function will return new code like, input > output
-	a > b, ax > ay, az > aA, aZ > a1, a9 > ba, 99 > aaa
-	it will create shortest alphanumeric code possible for using in url
-*/
-func GenerateNextCode(code string) (string, error) {
-	if code == "" {
-		return string(aChar), nil
-	}
-	codeBytes := []byte(code)
-	codeByteLen := len(codeBytes)
-
-	codeCharIndex := -1
-	for i := (codeByteLen - 1); i >= 0; i-- {
-		codeCharIndex = bytes.IndexByte(seedChars, codeBytes[i])
-		if codeCharIndex == -1 || codeCharIndex >= seedCharsLen {
-			return "", errors.New("Invalid exisitng code")
-		} else if codeCharIndex == (seedCharsLen - 1) {
-			codeBytes[i] = aChar
-		} else {
-			codeBytes[i] = seedChars[(codeCharIndex + 1)]
-			return string(codeBytes), nil
-		}
-	}
-	for _, byteVal := range codeBytes {
-		if byteVal != aChar {
-			return string(codeBytes), nil
-		}
-	}
-	// prepending "a" for generating new incremental code
-	return "a" + string(codeBytes), nil
-}
